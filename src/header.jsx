@@ -6,8 +6,14 @@ export const Header = ({ dateSelected }) => {
   const [dates, setDates] = useState([]);
 
   useEffect(() => {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0);
+    const currentDate = new Date();
+    const startOfDay = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate(),
+      0,
+      0
+    );
     setSelected(startOfDay);
   }, []);
 
@@ -18,16 +24,20 @@ export const Header = ({ dateSelected }) => {
 
   const generateDates = () => {
     const startDate = new Date(new Date(selected).setDate(selected.getDate() - 3));
-    let newDates = [startDate];
+    let generatedDates = [[], []];
+    const endOfStartMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+    let monthIndex = 0;
 
-    for (let i = 1; i < 7; i++) {
-      newDates.push(new Date(new Date(startDate).setDate(startDate.getDate() + i)));
+    for (let i = 0; i < 7; i++) {
+      const iteratedDate = new Date(new Date(startDate).setDate(startDate.getDate() + i));
+      generatedDates[monthIndex].push(iteratedDate);
+      if (isMatchingDates(endOfStartMonth, iteratedDate)) monthIndex = monthIndex + 1;
     }
 
-    setDates(newDates);
+    setDates(generatedDates);
   };
 
-  const calculateDates = (diff) => {
+  const selectDateWithDifference = (diff) => {
     setSelected(new Date(new Date(selected).setDate(selected.getDate() + diff)));
   };
 
@@ -40,17 +50,39 @@ export const Header = ({ dateSelected }) => {
     return days[date.getDay()];
   };
 
+  const getMonthName = (date) => {
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    return months[date.getMonth()];
+  };
+
   const backToToday = () => {
     const today = new Date();
     selectDate(today);
-  }
+  };
+
+  const isMatchingDates = (dateOne, dateTwo) => {
+    return (
+      `${dateOne.getFullYear()}${dateOne.getMonth()}${dateOne.getDate()}` ===
+      `${dateTwo.getFullYear()}${dateTwo.getMonth()}${dateTwo.getDate()}`
+    );
+  };
 
   const isToday = (date) => {
     const today = new Date();
-    return (
-      `${date.getFullYear()}${date.getMonth()}${date.getDate()}}` ===
-      `${today.getFullYear()}${today.getMonth()}${today.getDate()}}`
-    );
+    return isMatchingDates(date, today);
   };
 
   const selectedIsToday = isToday(selected);
@@ -58,21 +90,37 @@ export const Header = ({ dateSelected }) => {
   return (
     <DateHeaderContainer today={selectedIsToday}>
       <DateSelectContainer data-testid="date-header">
-        <DateItem className="nav" onClick={() => calculateDates(-7)}>
+        <DateItem className="nav" onClick={() => selectDateWithDifference(-7)}>
           &lt;
         </DateItem>
-        {dates.map((date, index) => {
-          let className = isToday(date) ? "today" : "";
-          className = `${className}${index === 3 ? " active" : ""}`;
+        {dates.map((monthDates, monthIndex) => {
+          if (monthDates.length > 0)
+            return (
+              <MonthContainer
+                key={`m${monthIndex}`}
+                month={getMonthName(monthDates[0])}
+                index={monthIndex}
+                count={dates[1].length > 0 ? 2 : 1}
+              >
+                {monthDates.map((date, dateIndex) => {
+                  let className = isToday(date) ? "today" : "";
+                  className = `${className}${isMatchingDates(date, selected) ? " active" : ""}`;
 
-          return (
-            <DateItem key={date} className={className} onClick={() => selectDate(date)}>
-              <span className="day">{getDayName(date)}</span>
-              <span className="date">{date.getDate()}</span>
-            </DateItem>
-          );
+                  return (
+                    <DateItem
+                      key={`d${date}`}
+                      className={className}
+                      onClick={() => selectDate(date)}
+                    >
+                      <span className="day">{getDayName(date)}</span>
+                      <span className="date">{date.getDate()}</span>
+                    </DateItem>
+                  );
+                })}
+              </MonthContainer>
+            );
         })}
-        <DateItem className="nav" onClick={() => calculateDates(7)}>
+        <DateItem className="nav" onClick={() => selectDateWithDifference(7)}>
           &gt;
         </DateItem>
       </DateSelectContainer>
@@ -91,7 +139,6 @@ const DateHeaderContainer = styled.div`
   width: 100%;
   display: flex;
   flex-direction: column;
-
 `;
 
 const DateSelectContainer = styled.div`
@@ -100,14 +147,42 @@ const DateSelectContainer = styled.div`
   justify-content: space-evenly;
   padding: 2 0 2 0;
   background-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0px 2px 9px 0px rgba(110,110,110,0.75);
-  -webkit-box-shadow: 0px 2px 9px 0px rgba(110,110,110,0.75);
-  -moz-box-shadow: 0px 2px 9px 0px rgba(110,110,110,0.75);
+  box-shadow: 0px 2px 9px 0px rgba(110, 110, 110, 0.75);
+  -webkit-box-shadow: 0px 2px 9px 0px rgba(110, 110, 110, 0.75);
+  -moz-box-shadow: 0px 2px 9px 0px rgba(110, 110, 110, 0.75);
 `;
 
 const DateOptions = styled.div`
   margin-top: 3px;
   text-align: center;
+`;
+
+const monthContainerMixin = (p) => {
+  const props =
+    p.index === 0 && p.count === 2
+      ? { psuedo: "after", position: "right" }
+      : { psuedo: "before", position: "left" };
+  const border = p.count === 2 ? `border-${props.position}: 1px solid #333;` : "";
+
+  return `${border}
+    &:${props.psuedo} {
+      content: "${p.month}";
+      position: absolute;
+      font-size: 12px;
+      ${props.position}: 0;
+      top: -1;
+      padding-${props.position}: 5px;
+    }`;
+};
+
+const MonthContainer = styled.div`
+  flex-grow: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  position: relative;
+  padding-top: 5px;
+  ${monthContainerMixin}
 `;
 
 const DateItem = styled.div`
@@ -153,5 +228,6 @@ const DateItem = styled.div`
     display: flex;
     flex-direction: column;
     justify-content: center;
+    max-width: 30px;
   }
 `;
